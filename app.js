@@ -3,19 +3,68 @@ var http = require('http'),
 	path = require('path');
 
 http.createServer(function(request, response){
-	var filePath = path.join('box', 'file.txt');
-	var stat = fileSystem.statSync(filePath);
+	console.log("request.url: ", request.url);
 
-	response.writeHead(200, {
-		// 'Content-Type': 'text/plain',
-		'Content-Type': 'application/octet-stream',
-		'Content-Length': stat.size,
-		'Content-Disposition': 'attachment; filename="file.txt"'
-		// 'Content-Type': 'image/png'
-		// 'Content-Disposition': 'attachment; filename="picture.png"'
-	});
+	var filename = "file.txt",
+		stat,
+		respHead,
+		filePath;
 
-	var readStream = fileSystem.createReadStream(filePath);
-	// We replaced all the event handlers with a simple call to readStream.pipe()
-	readStream.pipe(response);
+
+	if(request.url == "/"){
+		filename = "index.html";
+	} else {
+		filename = request.url.split("/").join("");
+	};
+
+
+	filePath = path.join('box', filename);
+
+
+	try {
+		stats = fileSystem.statSync(filePath);
+		if(!stats){
+			return;
+		}
+		sendFile();
+	}
+	catch (e) {
+		response.writeHead(404, {
+			'Content-Type': 'application/json'
+		});
+		response.end(
+			JSON.stringify(
+				{
+					response: [
+						"File \"",
+						filename,
+						"\" does not exist."
+					].join("")
+				}
+			)
+		);
+
+		return;
+	}
+
+	function sendFile(){
+		if(request.url == "/"){
+			respHead = {
+				'Content-Type': 'text/html'
+			};
+		} else {
+			respHead = {
+				'Content-Type': "application/octet-stream",
+				'Content-Length': stats.size,
+				'Content-Disposition': 'attachment; filename='+filename
+			};
+		};
+
+		response.writeHead(200, respHead);
+
+		var readStream = fileSystem.createReadStream(filePath);
+		// We replaced all the event handlers with a simple call to readStream.pipe()
+		readStream.pipe(response);
+	};
+
 }).listen(2000);
